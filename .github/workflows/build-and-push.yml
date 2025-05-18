@@ -27,14 +27,16 @@ jobs:
         registry: ghcr.io
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
-
+    #debug tages
+    - name: Debug tags
+      run: echo "Tages are ghcr.io/${{ tolower(github.repository_owner) }}/cups-lj2400l:latest"
     #Build and push Docker image
     - name: Build and push Docker image
       uses: docker/build-push-action@v6
       with:
         context: .
-        push: true
-        tages: ghcr.io/${{ github.repository_owner }}/cups-lj2400l:latest
+        push: ${{ github.event_name == 'push' }}
+        tages: ghcr.io/${{ tolower(github.repository_owner) }}/cups-lj2400l:latest
         labels: |
           org.opencontainers.image.source=${{ github.repository }}
           org.opencontainers.image.description=CUPS printer with Lenovo LJ2400L driver
