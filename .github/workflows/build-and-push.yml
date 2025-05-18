@@ -16,6 +16,10 @@ jobs:
     #checkout
     - name: Checkout code
       uses: actions/checkout@v4
+    
+    #Set up QEMU
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
 
     #Set up Docker Buildx
     - name: Set up Docker Buildx
@@ -32,7 +36,7 @@ jobs:
       id: meta
       uses: docker/metadata-action@v5
       with:
-        images: ghcr.io/${{ github.repository_owner }}/cups-lj2400l
+        images: ghcr.io/${{ github.repository_owner }}/cups-lj2400l:latest
         tags: |
           type=sha
           type=ref, event=branch
@@ -43,6 +47,7 @@ jobs:
       uses: docker/build-push-action@v6
       with:
         context: .
+        platforms: linux/amd64,linux/arm64
         push: ${{ github.event_name == 'push' }}
         tags: ${{ steps.meta.outputs.tags }}
         labels: |
