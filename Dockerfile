@@ -2,16 +2,16 @@ FROM debian:stable-slim
 
 # ENV variables
 ENV DEBIAN_FRONTEND noninteractive
-ENV TZ "America/New_York"
+ENV TZ "Asia/Shanghai"
 ENV CUPSADMIN admin
 ENV CUPSPASSWORD password
 
 
-LABEL org.opencontainers.image.source="https://github.com/anujdatar/cups-docker"
+LABEL org.opencontainers.image.source="https://github.com/wswv/cups-docker"
 LABEL org.opencontainers.image.description="CUPS Printer Server"
-LABEL org.opencontainers.image.author="Anuj Datar <anuj.datar@gmail.com>"
-LABEL org.opencontainers.image.url="https://github.com/anujdatar/cups-docker/blob/main/README.md"
-LABEL org.opencontainers.image.licenses=MIT
+LABEL org.opencontainers.image.author="John Z, qiangzhang09@gmail.com>"
+LABEL org.opencontainers.image.url="https://github.com/wswv/cups-docker/blob/main/README.md"
+LABEL org.opencontainers.image.licenses=GNU
 
 
 # Install dependencies
@@ -33,13 +33,22 @@ RUN apt-get update -qq  && apt-get upgrade -qqy \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# 复制驱动文件到容器
-COPY drivers/lj2400lcupswrapper-2.0.4-2.i386.deb /tmp/lj2400lcupswrapper.deb
-COPY drivers/lj2400llpr-2.1.0-1.i386.deb /tmp/lj2400llpr.deb
+# Create non-root user and group
+RUN groupadd -g 1000 cupsuser && \
+    useradd -u 1000 -g cupsuser -m -s /bin/bash cupsuser && \
+    usermod -aG lp cupsuser
 
-# 安装驱动
-RUN dpkg -i /tmp/lj2400lcupswrapper.deb /tmp/lj2400llpr.deb || apt-get update && apt-get install -f -y \
-    && rm /tmp/lj2400lcupswrapper.deb /tmp/lj2400llpr.deb
+
+# copy pdd file
+COPY drivers/Lenovo_LJ2400L.ppd /usr/share/cups/model/
+RUN chmod 644 /usr/share/cups/model/Lenovo_LJ2400L.pdd && \
+    chown -R cupuser:cupsuser /usr/share/cups/model/ && \
+    chown -R cupsuser:cupsuser /etc/cups
+
+# Let non-root user to bind lower port
+RUN setcap 'cap_net_bind_service=+ep' /usr/sbin/cupsd
+
+
 
 EXPOSE 631
 EXPOSE 5353/udp
@@ -57,7 +66,12 @@ RUN sed -i 's/Listen localhost:631/Listen 0.0.0.0:631/' /etc/cups/cupsd.conf && 
 RUN cp -rp /etc/cups /etc/cups-bak
 VOLUME [ "/etc/cups" ]
 
-COPY entrypoint.sh /
-RUN chmod +x /entrypoint.sh
+# Copy and check the script of usb privilege
+COPY check-usb-permissions.sh /check-usb-permissions.sh
+RUN chmod +x check-usb-permissions.sh && \
+    chown cupsuser:cupsuser /check-usb-permissions.sh
 
-CMD ["/entrypoint.sh"]
+# Switch to non-root user  
+USER cupsuser  
+
+CMD ["/check-usb-permissions.sh"]
