@@ -33,6 +33,14 @@ RUN apt-get update -qq  && apt-get upgrade -qqy \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# 复制驱动文件到容器
+COPY drivers/lj2400lcupswrapper-2.0.4-2.i386.deb /tmp/lj2400lcupswrapper.deb
+COPY drivers/lj2400llpr-2.1.0-1.i386.deb /tmp/lj2400llpr.deb
+
+# 安装驱动
+RUN dpkg -i /tmp/lj2400lcupswrapper.deb /tmp/lj2400llpr.deb || apt-get update && apt-get install -f -y \
+    && rm /tmp/lj2400lcupswrapper.deb /tmp/lj2400llpr.deb
+
 EXPOSE 631
 EXPOSE 5353/udp
 
