@@ -42,7 +42,7 @@ RUN groupadd -g 1000 cupsuser && \
 # copy pdd file
 COPY drivers/Lenovo_LJ2400L.ppd /usr/share/cups/model/
 RUN chmod 644 /usr/share/cups/model/Lenovo_LJ2400L.pdd && \
-    chown -R cupuser:cupsuser /usr/share/cups/model/ && \
+    chown -R cupsuser:cupsuser /usr/share/cups/model/ && \
     chown -R cupsuser:cupsuser /etc/cups
 
 # Let non-root user to bind lower port
