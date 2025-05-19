@@ -30,6 +30,7 @@ RUN apt-get update -qq  && apt-get upgrade -qqy \
     hp-ppd \
     hplip \
     avahi-daemon \
+    libcap2-bin \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
