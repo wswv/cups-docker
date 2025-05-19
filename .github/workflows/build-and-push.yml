@@ -3,10 +3,10 @@ name: Build and Push to GHCR
 on:
   push:
     branches:
-      - main
+      - '*' # adapt all kinds of branch
   pull_request:
     branches:
-      - main
+      - '*' # dapat all kinds of branch
 
 jobs:
   build-and-push:
@@ -53,7 +53,7 @@ jobs:
         labels: |
           org.opencontainers.image.source=${{ github.repository }}
           org.opencontainers.image.description=CUPS printer with Lenovo LJ2400L driver
-          org.opencontainers.image.licenses=MIT
+          org.opencontainers.image.licenses=GNU
 
 
         
