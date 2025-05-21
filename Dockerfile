@@ -1,3 +1,4 @@
+# 基于原始镜像
 FROM debian:stable-slim
 
 # ENV variables
@@ -6,16 +7,14 @@ ENV TZ "Asia/Shanghai"
 ENV CUPSADMIN admin
 ENV CUPSPASSWORD password
 
-
 LABEL org.opencontainers.image.source="https://github.com/wswv/cups-docker"
 LABEL org.opencontainers.image.description="CUPS Printer Server"
 LABEL org.opencontainers.image.author="John Z, qiangzhang09@gmail.com>"
 LABEL org.opencontainers.image.url="https://github.com/wswv/cups-docker/blob/main/README.md"
 LABEL org.opencontainers.image.licenses=GNU
 
-
 # Install dependencies
-RUN apt-get update -qq  && apt-get upgrade -qqy \
+RUN apt-get update -qq && apt-get upgrade -qqy \
     && apt-get install -qqy \
     apt-utils \
     usbutils \
@@ -39,17 +38,15 @@ RUN groupadd -g 1000 cupsuser && \
     useradd -u 1000 -g cupsuser -m -s /bin/bash cupsuser && \
     usermod -aG lp cupsuser
 
-
-# copy pdd file
+# Copy PPD file
+RUN mkdir -p /usr/share/cups/model/
 COPY drivers/Lenovo_LJ2400L.ppd /usr/share/cups/model/
 RUN chmod 644 /usr/share/cups/model/Lenovo_LJ2400L.ppd && \
     chown -R cupsuser:cupsuser /usr/share/cups/model/ && \
     chown -R cupsuser:cupsuser /etc/cups
 
-# Let non-root user to bind lower port
+# Let non-root user bind lower port
 RUN setcap 'cap_net_bind_service=+ep' /usr/sbin/cupsd
-
-
 
 EXPOSE 631
 EXPOSE 5353/udp
@@ -63,16 +60,23 @@ RUN sed -i 's/Listen localhost:631/Listen 0.0.0.0:631/' /etc/cups/cupsd.conf && 
     echo "ServerAlias *" >> /etc/cups/cupsd.conf && \
     echo "DefaultEncryption Never" >> /etc/cups/cupsd.conf
 
-# back up cups configs in case used does not add their own
+# Back up cups configs in case user does not add their own
 RUN cp -rp /etc/cups /etc/cups-bak
-VOLUME [ "/etc/cups" ]
 
-# Copy and check the script of usb privilege
+# Copy and set up scripts
 COPY check-usb-permissions.sh /check-usb-permissions.sh
-RUN chmod +x check-usb-permissions.sh && \
+RUN chmod +x /check-usb-permissions.sh && \
     chown cupsuser:cupsuser /check-usb-permissions.sh
 
-# Switch to non-root user  
-USER cupsuser  
+COPY init-cups-config.sh /init-cups-config.sh
+RUN chmod +x /init-cups-config.sh && \
+    chown cupsuser:cupsuser /init-cups-config.sh
 
-CMD ["/check-usb-permissions.sh"]
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh && \
+    chown cupsuser:cupsuser /entrypoint.sh
+
+# Switch to non-root user
+USER cupsuser
+
+CMD ["/entrypoint.sh"]
