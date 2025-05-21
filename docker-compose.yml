@@ -1,0 +1,14 @@
+version: '3.8'
+services:
+  cups:
+    image: ghcr.io/wswv/cups-lj2400l:latest
+    user: "1000:1000"
+    privileged: true
+    ports:
+      - "631:631"
+    volumes:
+      - /dev/bus/usb:/dev/bus/usb
+      - /home/pi/cups-config:/etc/cups
+    environment:
+      - CUPS_CONFIG_DIR=/home/pi/cups-config
+    restart: unless-stopped

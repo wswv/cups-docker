@@ -1,21 +1,20 @@
+# 基于原始镜像
 FROM debian:stable-slim
 
 # ENV variables
 ENV DEBIAN_FRONTEND noninteractive
-ENV TZ "America/New_York"
+ENV TZ "Asia/Shanghai"
 ENV CUPSADMIN admin
 ENV CUPSPASSWORD password
 
-
-LABEL org.opencontainers.image.source="https://github.com/anujdatar/cups-docker"
+LABEL org.opencontainers.image.source="https://github.com/wswv/cups-docker"
 LABEL org.opencontainers.image.description="CUPS Printer Server"
-LABEL org.opencontainers.image.author="Anuj Datar <anuj.datar@gmail.com>"
-LABEL org.opencontainers.image.url="https://github.com/anujdatar/cups-docker/blob/main/README.md"
-LABEL org.opencontainers.image.licenses=MIT
-
+LABEL org.opencontainers.image.author="John Z, qiangzhang09@gmail.com>"
+LABEL org.opencontainers.image.url="https://github.com/wswv/cups-docker/blob/main/README.md"
+LABEL org.opencontainers.image.licenses=GNU
 
 # Install dependencies
-RUN apt-get update -qq  && apt-get upgrade -qqy \
+RUN apt-get update -qq && apt-get upgrade -qqy \
     && apt-get install -qqy \
     apt-utils \
     usbutils \
@@ -30,16 +29,24 @@ RUN apt-get update -qq  && apt-get upgrade -qqy \
     hp-ppd \
     hplip \
     avahi-daemon \
+    libcap2-bin \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# 复制驱动文件到容器
-COPY drivers/lj2400lcupswrapper-2.0.4-2.i386.deb /tmp/lj2400lcupswrapper.deb
-COPY drivers/lj2400llpr-2.1.0-1.i386.deb /tmp/lj2400llpr.deb
+# Create non-root user and group
+RUN groupadd -g 1000 cupsuser && \
+    useradd -u 1000 -g cupsuser -m -s /bin/bash cupsuser && \
+    usermod -aG lp cupsuser
 
-# 安装驱动
-RUN dpkg -i /tmp/lj2400lcupswrapper.deb /tmp/lj2400llpr.deb || apt-get update && apt-get install -f -y \
-    && rm /tmp/lj2400lcupswrapper.deb /tmp/lj2400llpr.deb
+# Copy PPD file
+RUN mkdir -p /usr/share/cups/model/
+COPY drivers/Lenovo_LJ2400L.ppd /usr/share/cups/model/
+RUN chmod 644 /usr/share/cups/model/Lenovo_LJ2400L.ppd && \
+    chown -R cupsuser:cupsuser /usr/share/cups/model/ && \
+    chown -R cupsuser:cupsuser /etc/cups
+
+# Let non-root user bind lower port
+RUN setcap 'cap_net_bind_service=+ep' /usr/sbin/cupsd
 
 EXPOSE 631
 EXPOSE 5353/udp
@@ -53,11 +60,23 @@ RUN sed -i 's/Listen localhost:631/Listen 0.0.0.0:631/' /etc/cups/cupsd.conf && 
     echo "ServerAlias *" >> /etc/cups/cupsd.conf && \
     echo "DefaultEncryption Never" >> /etc/cups/cupsd.conf
 
-# back up cups configs in case used does not add their own
+# Back up cups configs in case user does not add their own
 RUN cp -rp /etc/cups /etc/cups-bak
-VOLUME [ "/etc/cups" ]
 
-COPY entrypoint.sh /
-RUN chmod +x /entrypoint.sh
+# Copy and set up scripts
+COPY check-usb-permissions.sh /check-usb-permissions.sh
+RUN chmod +x /check-usb-permissions.sh && \
+    chown cupsuser:cupsuser /check-usb-permissions.sh
+
+COPY init-cups-config.sh /init-cups-config.sh
+RUN chmod +x /init-cups-config.sh && \
+    chown cupsuser:cupsuser /init-cups-config.sh
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh && \
+    chown cupsuser:cupsuser /entrypoint.sh
+
+# Switch to non-root user
+USER cupsuser
 
 CMD ["/entrypoint.sh"]
